@@ -209,6 +209,7 @@ def transaction_page3():
                         cursor.execute('UPDATE account SET balance = ? WHERE account_id == ?', (result, account_id))
                         connect.commit()
                         st.session_state.update(page='home')
+                        st.rerun()
                     else:
                         st.error('Senha Incorreta!')
 
