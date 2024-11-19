@@ -20,9 +20,9 @@ def login_page():
                 result = cursor.fetchone()
                 if result:
                     st.success('Login com sucesso')
-                    st.session_state.logged_in = True
-                    st.session_state.page = 'home'
                     st.session_state.account_id = result[0]
+                    st.session_state.logged_in = True
+                    st.session_state.update(page='home')
                 else:
                     st.error('E-mail ou senha incorretos')
             except Exception as e:
@@ -67,9 +67,11 @@ def register_page():
                                VALUES (?, ?, ?)""", (client_id, AccountType, balance))
                 connect.commit()
 
+                st.session_state.account_id = client_id
+
                 st.success('Cadastrado com Sucesso!')
                 st.session_state.logged_in = True
-                st.session_state.page = 'home'
+                st.session_state.update(page='home')
             except Exception as e:
                 print('Erro:', e)
 
@@ -92,6 +94,7 @@ def register_page():
 
 # Função para exibir a página inicial (Home)
 def home_page():
+
     st.title("Saldo em conta:")
     with sqlite3.connect('register.db') as connect:
         cursor = connect.cursor()
@@ -104,17 +107,110 @@ def home_page():
             st.error('Não estamos conseguindo acessar o valor da sua conta! Tente reiniciar o app.')
 
         if result[2] == 'Usuário':
-            st.button(label='Transação', on_click=lambda: st.session_state.update(page='transaction'))
+            st.button(label='Transação', on_click=lambda: st.session_state.update(page='transaction_1'))
+        else:
+            pass
 
     if st.session_state.page == 'home':
         st.sidebar.button(label='Menu', on_click=lambda: st.session_state.update(page='home'))
         st.sidebar.button(label='Histórico de Transações', on_click=lambda: st.session_state.update(page='transaction history'))
 
 
-def transaction_page():
+def transaction_page1():
     st.title('Transação')
-    #continuar a logica
+    FieldCPF = st.text_input(label='CPF', placeholder='000.000.000-00').replace('.', '').replace('-', '').strip()
     st.button(label='Voltar', on_click=lambda: st.session_state.update(page='home'))
+    
+    if st.button(label='Continuar'):
+        with sqlite3.connect('register.db') as connect:
+            cursor = connect.cursor()
+            cursor.execute('SELECT * FROM client WHERE cpf == ?', (FieldCPF,))
+            result = cursor.fetchone()
+            if result:
+                st.session_state.Id_Client = result[0]
+                st.session_state.update(page='transaction_2')
+                st.rerun()  
+            else:
+                st.error('CPF Inválido')
+
+
+def transaction_page2():
+    Id_Client = st.session_state.Id_Client
+    account_id = st.session_state.account_id
+    FielValue = st.text_input(label='Valor', placeholder='19,90').strip().replace(',', '.')
+
+    st.button(label='Voltar', on_click=lambda: st.session_state.update(page='transaction_1'))
+    
+    if st.button(label='Continuar'):
+        try:
+            FielValue = int(FielValue)
+        except:
+            st.error('Digite um valor válido')
+        else:
+            with sqlite3.connect('register.db') as connect:
+                cursor = connect.cursor()
+                cursor.execute('SELECT * FROM account WHERE client_id == ?', (account_id,))
+                result = cursor.fetchone()[3]
+                if result >= FielValue:
+                    cursor.execute('SELECT * FROM account WHERE client_id == ?', (Id_Client,))
+                    result = cursor.fetchone()[3]
+                    if result:
+                        st.session_state.Value = FielValue
+                        st.session_state.update(page='transaction_3')
+                        st.rerun()
+                    else:
+                        st.error('Conta não encontrada. Tente novamente mais tarde.')
+                else:
+                    st.error('Saldo Insuficiente!')
+
+
+def transaction_page3():
+    Id_Client = st.session_state.Id_Client
+    account_id = st.session_state.account_id
+    Value = st.session_state.Value
+    with sqlite3.connect('register.db') as connect:
+        cursor = connect.cursor()
+        cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
+        result = cursor.fetchone()[4]
+        if result == None:
+            st.title('Crie uma senha de até seis digitos')
+            FieldPassword = st.text_input(label='', placeholder='EX: 123456').strip()
+            if st.button('Continuar'):
+                try:
+                    FieldPassword = int(FieldPassword)
+                except:
+                    st.error('Senha Inválida')
+                else:
+                    if len(str(FieldPassword)) <= 6:
+                        cursor.execute('UPDATE account SET password = ? WHERE account_id == ?', (FieldPassword, account_id))
+                    else:
+                        st.error('Senha com mais de 6 digitos')
+        else:
+            st.title('Digite sua senha')
+            FieldPassword = st.text_input(label='')
+            cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
+            result = cursor.fetchone()[4]
+            if st.button('Continuar'):
+                try:
+                    FieldPassword = int(FieldPassword)
+                except:
+                    st.error('Senha Inválida')
+                else:
+                    if result == FieldPassword:
+                        cursor.execute('SELECT * FROM account WHERE client_id == ?', (Id_Client,))
+                        result = cursor.fetchone()[3]
+                        result = result + Value
+                        cursor.execute('UPDATE account SET balance = ? WHERE client_id == ?', (result, Id_Client))
+                        connect.commit()
+
+                        cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
+                        result = cursor.fetchone()[3]
+                        result = result - Value
+                        cursor.execute('UPDATE account SET balance = ? WHERE account_id == ?', (result, account_id))
+                        connect.commit()
+                        st.session_state.update(page='home')
+                    else:
+                        st.error('Senha Incorreta!')
 
 
 def transaction_history_page():
@@ -128,13 +224,17 @@ def transaction_history_page():
 # Controle de navegação entre páginas
 if st.session_state.page == 'login' and not st.session_state.logged_in:
     login_page()
-elif st.session_state.page == 'transaction':
-    transaction_page()
+elif st.session_state.page == 'transaction_1':
+    transaction_page1()
+elif st.session_state.page == 'transaction_2':
+    transaction_page2()
+elif st.session_state.page == 'transaction_3':
+    transaction_page3()
 elif st.session_state.page == 'transaction history':
     transaction_history_page()
 elif st.session_state.page == 'register':
     register_page()
-elif st.session_state.page == 'home' and st.session_state.logged_in:
+elif st.session_state.page == 'home' and st.session_state.logged_in == True:
     home_page()
 else:
     login_page()
