@@ -1,6 +1,14 @@
 import streamlit as st
 import sqlite3
 import random
+import requests
+import json
+import time
+
+day = time.localtime().tm_mday
+mon = time.localtime().tm_mon
+year = time.localtime().tm_year
+date = f'{day}/{mon}/{year}'
 
 
 # Inicializa o estado de autenticação
@@ -191,24 +199,42 @@ def transaction_page3():
             cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
             result = cursor.fetchone()[4]
             if st.button('Continuar'):
+                resposta = requests.get('https://util.devi.tools/api/v2/authorize')
+                resposta = resposta.json()
                 try:
                     FieldPassword = int(FieldPassword)
                 except:
                     st.error('Senha Inválida')
                 else:
-                    if result == FieldPassword:
+                    if result == FieldPassword and resposta['data']['authorization'] == True:
                         cursor.execute('SELECT * FROM account WHERE client_id == ?', (Id_Client,))
                         result = cursor.fetchone()[3]
                         result = result + Value
                         cursor.execute('UPDATE account SET balance = ? WHERE client_id == ?', (result, Id_Client))
                         connect.commit()
+                        cursor.execute("""INSERT INTO transaction_history (id_client, get, date)
+                                       VALUES(?, ?, ?)""", (Id_Client, Value, date))
+                        connect.commit()
+
 
                         cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
                         result = cursor.fetchone()[3]
                         result = result - Value
                         cursor.execute('UPDATE account SET balance = ? WHERE account_id == ?', (result, account_id))
                         connect.commit()
+                        Value = Value*-1
+                        cursor.execute("""INSERT INTO transaction_history (id_client, give, date)
+                                       VALUES(?, ?, ?)""", (account_id, Value, date))
+                        connect.commit()
+                        st.success('Transação feita com sucesso!')
+                        time.sleep(2)
                         st.session_state.update(page='home')
+                        st.rerun()
+                    elif resposta['data']['authorization'] == False:
+                        st.error('Transação negada! Tente novamente mais tarde!')
+                        time.sleep(2)
+                        st.session_state.update(page='home')
+                        print('FOI NEGADO!')
                         st.rerun()
                     else:
                         st.error('Senha Incorreta!')
@@ -216,6 +242,7 @@ def transaction_page3():
 
 def transaction_history_page():
     st.title('Hitórico')
+
     #continuar a logica
     if st.session_state.page == 'transaction history':
         st.sidebar.button(label='Menu', on_click=lambda: st.session_state.update(page='home'))
