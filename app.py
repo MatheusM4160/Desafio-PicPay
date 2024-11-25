@@ -13,6 +13,19 @@ date = f'{day}/{mon}/{year}'
 
 
 
+def send_notification(to, message):
+    url = "https://util.devi.tools/api/v1/notify"
+    payload = {"to": to, "message": message}
+
+    try:
+        response = requests.post(url, json=payload, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erro ao enviar notificação: {e}")
+        return None
+
+
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'page' not in st.session_state:
@@ -226,8 +239,14 @@ def transaction_page3():
                         connect.commit()
                         st.success('Transação feita com sucesso!')
                         time.sleep(2)
+
+                        cursor.execute("""SELECT * FROM client WHERE id = ?""", (Id_Client,))
+                        result = cursor.fetchone()[3]
+                        send_notification(result, f'Você recebeu um pagamento de R${float(Value):.2f}!')
+
                         st.session_state.update(page='home')
                         st.rerun()
+
                     elif resposta['data']['authorization'] == False:
                         st.error('Transação negada! Tente novamente mais tarde!')
                         time.sleep(2)
