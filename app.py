@@ -4,6 +4,7 @@ import random
 import requests
 import json
 import time
+import pandas as pd
 
 day = time.localtime().tm_mday
 mon = time.localtime().tm_mon
@@ -11,14 +12,13 @@ year = time.localtime().tm_year
 date = f'{day}/{mon}/{year}'
 
 
-# Inicializa o estado de autenticação
+
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'page' not in st.session_state:
-    st.session_state.page = 'login'  # Começa na página de login
+    st.session_state.page = 'login'
 
 
-# Função para exibir a página de login
 def login_page():
     def Login(Email, Password):
         with sqlite3.connect('register.db') as connect:
@@ -50,7 +50,6 @@ def login_page():
         st.rerun()
 
 
-# Função para exibir a página de registro
 def register_page():
     def Register(Name, CPF, Email, Password, AccountType):
         with sqlite3.connect('register.db') as connect:
@@ -100,7 +99,6 @@ def register_page():
         st.rerun()
 
 
-# Função para exibir a página inicial (Home)
 def home_page():
 
     st.title("Saldo em conta:")
@@ -241,15 +239,26 @@ def transaction_page3():
 
 
 def transaction_history_page():
+    account_id = st.session_state.account_id
     st.title('Hitórico')
+    with sqlite3.connect('register.db') as connect:
+        cursor = connect.cursor()
+        cursor.execute('''SELECT give, get, date
+                       FROM transaction_history
+                       WHERE id_client = ?
+                       ''', (account_id,))
+        data = cursor.fetchall()
+        df = pd.DataFrame(data, columns=['Saiu', 'Entrou', 'Data'])
+        df.fillna('', inplace=True)
 
-    #continuar a logica
+        st.dataframe(df)
+
     if st.session_state.page == 'transaction history':
         st.sidebar.button(label='Menu', on_click=lambda: st.session_state.update(page='home'))
         st.sidebar.button(label='Histórico de Transações', on_click=lambda: st.session_state.update(page='transaction history'))
 
 
-# Controle de navegação entre páginas
+
 if st.session_state.page == 'login' and not st.session_state.logged_in:
     login_page()
 elif st.session_state.page == 'transaction_1':
