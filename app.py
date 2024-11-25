@@ -2,17 +2,17 @@ import streamlit as st
 import sqlite3
 import random
 import requests
-import json
 import time
 import pandas as pd
 
+# Pegar dados de data para utilizar na hora das transições
 day = time.localtime().tm_mday
 mon = time.localtime().tm_mon
 year = time.localtime().tm_year
 date = f'{day}/{mon}/{year}'
 
 
-
+# Função para verifiacr o Mock
 def send_notification(to, message):
     url = "https://util.devi.tools/api/v1/notify"
     payload = {"to": to, "message": message}
@@ -26,13 +26,16 @@ def send_notification(to, message):
         return None
 
 
+# Criação das sessões mais importantes, a de login e a de page para navegar entre as páginas
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'page' not in st.session_state:
     st.session_state.page = 'login'
 
 
+# Função para página de login
 def login_page():
+    # Função para verificar o login com o banco de dados
     def Login(Email, Password):
         with sqlite3.connect('register.db') as connect:
             cursor = connect.cursor()
@@ -56,14 +59,15 @@ def login_page():
     ButtonLogin = st.button(label='Login', on_click=lambda:Login(Email=FieldEmail, Password=FieldPassword)
                             if FieldEmail and FieldPassword != ''
                             else st.error('Preencha todos os campos'))
-    
+
     if st.button('Registrar'):
         st.session_state.logged_in = True
         st.session_state.page = 'register'
         st.rerun()
 
-
+# Função para página de registro
 def register_page():
+    #Função para colocar os dados do registro no banco de dados
     def Register(Name, CPF, Email, Password, AccountType):
         with sqlite3.connect('register.db') as connect:
             cursor = connect.cursor()
@@ -112,10 +116,11 @@ def register_page():
         st.rerun()
 
 
+# Função para página principal
 def home_page():
-
     st.title("Saldo em conta:")
     with sqlite3.connect('register.db') as connect:
+        # Pega o saldo da conta
         cursor = connect.cursor()
         account_id = st.session_state.account_id
         cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
@@ -130,11 +135,12 @@ def home_page():
         else:
             pass
 
+    #Cria o menu lateral da página
     if st.session_state.page == 'home':
         st.sidebar.button(label='Menu', on_click=lambda: st.session_state.update(page='home'))
         st.sidebar.button(label='Histórico de Transações', on_click=lambda: st.session_state.update(page='transaction history'))
 
-
+# Função para página de primeira sessão da transação
 def transaction_page1():
     st.title('Transação')
     FieldCPF = st.text_input(label='CPF', placeholder='000.000.000-00').replace('.', '').replace('-', '').strip()
@@ -152,7 +158,7 @@ def transaction_page1():
             else:
                 st.error('CPF Inválido')
 
-
+# Função para página de segunda sessão da transação
 def transaction_page2():
     Id_Client = st.session_state.Id_Client
     account_id = st.session_state.account_id
@@ -183,6 +189,7 @@ def transaction_page2():
                     st.error('Saldo Insuficiente!')
 
 
+# Função para página de terceira sessão da transação
 def transaction_page3():
     Id_Client = st.session_state.Id_Client
     account_id = st.session_state.account_id
@@ -191,6 +198,7 @@ def transaction_page3():
         cursor = connect.cursor()
         cursor.execute('SELECT * FROM account WHERE account_id == ?', (account_id,))
         result = cursor.fetchone()[4]
+        # Caso não tenha criado a senha de autenticação deve criar
         if result == None:
             st.title('Crie uma senha de até seis digitos')
             FieldPassword = st.text_input(label='', placeholder='EX: 123456').strip()
@@ -202,6 +210,7 @@ def transaction_page3():
                 else:
                     if len(str(FieldPassword)) <= 6:
                         cursor.execute('UPDATE account SET password = ? WHERE account_id == ?', (FieldPassword, account_id))
+                        st.rerun()
                     else:
                         st.error('Senha com mais de 6 digitos')
         else:
@@ -257,6 +266,7 @@ def transaction_page3():
                         st.error('Senha Incorreta!')
 
 
+# Função da página ver o histórico de transações
 def transaction_history_page():
     account_id = st.session_state.account_id
     st.title('Hitórico')
@@ -272,12 +282,14 @@ def transaction_history_page():
 
         st.dataframe(df)
 
+    #Cria o menu lateral da página
     if st.session_state.page == 'transaction history':
         st.sidebar.button(label='Menu', on_click=lambda: st.session_state.update(page='home'))
         st.sidebar.button(label='Histórico de Transações', on_click=lambda: st.session_state.update(page='transaction history'))
 
 
 
+# Lógica de mudança de páginas
 if st.session_state.page == 'login' and not st.session_state.logged_in:
     login_page()
 elif st.session_state.page == 'transaction_1':
