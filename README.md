@@ -43,17 +43,17 @@
 ## 📝 Estrutura do Banco de Dados
 
 # Tabela `client`
--`id`: Identificador único.
--`name`: Nome do usuário.
--`cpf`: CPF do usuário.
--`email`: E-mail do usuário.
--`password`: Senha do usuário
--`account_type`: Tipo de conta.
+- `id`: Identificador único.
+- `name`: Nome do usuário.
+- `cpf`: CPF do usuário.
+- `email`: E-mail do usuário.
+- `password`: Senha do usuário
+- `account_type`: Tipo de conta.
 
 # Tabela `account`
 
--`account_id`: ID único da conta.
--`client_id`: Referência ao cliente.
--`account_type`: Tipo de conta.
--`balance`: Saldo.
--`password`: Senha para transações.
+- `account_id`: ID único da conta.
+- `client_id`: Referência ao cliente.
+- `account_type`: Tipo de conta.
+- `balance`: Saldo.
+- `password`: Senha para transações.
